@@ -52,8 +52,13 @@ def cmd_build(args) -> int:
         with open(os.path.join(os.path.dirname(args.content), "theme.json"),
                   encoding="utf-8") as fh:
             theme = json.load(fh)
-    out = build(content, theme_mod.normalize(theme), args.out,
-                args.assets or None)
+    out = args.out
+    assets = args.assets
+    if not assets:
+        candidate = os.path.join(os.path.dirname(os.path.abspath(args.content)), "assets")
+        if os.path.isdir(candidate):
+            assets = candidate
+    build(content, theme_mod.normalize(theme), out, assets or None)
     print("已生成:", out)
     return 0
 
