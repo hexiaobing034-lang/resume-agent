@@ -1,0 +1,35 @@
+{
+  "name": "示例模板 · 微软雅黑",
+  "source": "builtin",
+  "page": {
+    "width": 595.28,
+    "height": 841.89,
+    "margin_left": 48.0,
+    "margin_right": 48.0,
+    "margin_top": 44.0,
+    "margin_bottom": 40.0
+  },
+  "fonts": {"cjk": "Microsoft YaHei", "latin": "Arial"},
+  "sizes": {"name": 24.0, "section": 14.0, "entry": 11.5, "body": 10.5, "body_lg": 11.0, "contact": 9.5},
+  "colors": {"ink": "#111111", "soft": "#333333", "bar": "#9A9A9A"},
+  "spacing": {
+    "name_line": 30.0,
+    "name_sb": 0.0,
+    "contact_line": 14.0,
+    "c1_sb": 6.0,
+    "c2_sb": 8.0,
+    "section_sb": 16.0,
+    "section_line": 22.0,
+    "entry_sb": 4.0,
+    "entry_line": 17.0,
+    "para_sb": 0.0,
+    "para_line": 15.0,
+    "bullet_line": 15.0,
+    "sub_sb": 0.0,
+    "block_sb": {}
+  },
+  "indent": {"bullet_left": 16.0, "bullet_hanging": 10.0},
+  "header": {"center": true, "logo": null, "photo": null},
+  "meta_tab": 120.0,
+  "date_right": true
+}

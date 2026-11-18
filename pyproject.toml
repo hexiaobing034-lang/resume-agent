@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "resume-agent"
+version = "1.0.0"
+description = "上传简历或模板，自动识别版式与结构，浏览器编辑后导出 docx"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "何幸冰", email = "hexiaobing034-lang@users.noreply.github.com" }]
+keywords = ["resume", "docx", "pdf", "agent", "简历"]
+dependencies = ["python-docx>=1.1.0"]
+
+[project.optional-dependencies]
+pdf = ["pymupdf>=1.24.0"]
+
+[project.scripts]
+resume-agent = "resume_agent.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/hexiaobing034-lang/resume-agent"
+
+[tool.setuptools]
+packages = ["resume_agent"]

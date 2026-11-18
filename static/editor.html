@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>简历编辑 · 版式实时预览</title>
+<style>
+  :root { --ink:#171717; --soft:#1a1a1a; --bar:#9a9a9a; --line:#e3e3df; --bg:#f6f6f3;
+          --card:#fff; --accent:#0b6b5f; --accent-soft:#e7f3ef; --warn:#b3261e;
+          --font-cjk:"Noto Sans SC","Microsoft YaHei",sans-serif; --font-latin:Arial, sans-serif;
+          --page-w:595.28pt; --page-h:841.89pt;
+          --margin-l:41.5pt; --margin-r:39.8pt; --margin-t:40pt; --margin-b:36pt;
+          --name-size:21.5pt; --name-line-h:26pt; --contact-size:9pt; --contact-line-h:12pt;
+          --section-size:12.5pt; --section-line-h:18pt; --entry-size:11pt; --entry-line-h:15pt;
+          --body-size:9pt; --para-line-h:12pt; --bullet-line-h:12pt; }
+  * { box-sizing:border-box; }
+  html,body { height:100%; margin:0; }
+  body { background:var(--bg); color:var(--ink); font:14px/1.5 -apple-system,"Segoe UI",
+         "Microsoft YaHei","Noto Sans SC",sans-serif; overflow:hidden; }
+  button { font:inherit; }
+  .topbar { height:56px; background:#fff; border-bottom:1px solid var(--line); padding:0 14px;
+            display:flex; align-items:center; gap:10px; }
+  .topbar .back { color:#666; font-size:13px; text-decoration:none; white-space:nowrap; }
+  .topbar .back:hover { color:var(--accent); }
+  .topbar h1 { font-size:14px; margin:0; font-weight:700; white-space:nowrap; }
+  .topbar .hint { color:#9a9a94; font-size:11.5px; white-space:nowrap; }
+  .topbar .hint kbd { border:1px solid #d5d5cf; border-bottom-width:2px; border-radius:4px;
+                      padding:0 4px; font-size:10.5px; background:#fafaf8; }
+  #pagebadge { font-size:12px; padding:5px 12px; border-radius:20px; background:var(--accent-soft);
+               color:var(--accent); font-weight:600; white-space:nowrap; }
+  #pagebadge.warn { background:#fdecec; color:var(--warn); }
+  .grow { flex:1; }
+  .btn { border:1px solid var(--line); background:#fff; color:var(--ink); padding:6px 11px;
+         border-radius:7px; cursor:pointer; white-space:nowrap; font-size:13px; }
+  .btn:hover { border-color:#bbb; }
+  .btn.primary { background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600; }
+  .btn.primary:hover { filter:brightness(1.08); }
+  .btn:disabled { opacity:.45; cursor:not-allowed; }
+  .btn.mini { padding:2px 8px; font-size:11.5px; border-radius:5px; color:#666; }
+  .btn.boldbtn { font-weight:800; padding:1px 9px; font-size:12px; }
+  .wrap { display:grid; grid-template-columns:minmax(430px,1fr) 470px; height:calc(100% - 56px); }
+  #editor { overflow:auto; padding:16px 18px 90px; }
+  #stage { overflow:auto; background:#e9e9e4; border-left:1px solid var(--line); padding:16px; }
+  .sheet { margin:0 auto; position:relative; }
+  .paper { background:#fff; position:relative; transform-origin:top left; color:var(--ink);
+           font-family:var(--font-cjk); font-size:var(--body-size);
+           box-shadow:0 2px 10px rgba(0,0,0,.16); }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px;
+          padding:14px 16px; margin-bottom:12px; }
+  .card h2 { font-size:12px; margin:0 0 10px; letter-spacing:.12em; color:#666; font-weight:600;
+             display:flex; align-items:center; gap:8px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(185px,1fr)); gap:10px 12px; }
+  label.f { display:flex; flex-direction:column; gap:4px; font-size:11.5px; color:#777; }
+  input[type=text], input[type=number] { font:inherit; font-size:13px; color:var(--ink);
+           border:1px solid var(--line); border-radius:6px; padding:6px 9px; background:#fcfcfa;
+           width:100%; }
+  input:focus { outline:none; border-color:var(--accent); background:#fff; }
+  .rich { min-height:40px; padding:7px 9px; border:1px solid var(--line); border-radius:6px;
+          background:#fcfcfa; line-height:1.7; white-space:pre-wrap; word-break:break-word;
+          font-size:13px; }
+  .rich:focus { outline:none; border-color:var(--accent); background:#fff; }
+  .rich:empty::before { content:attr(data-ph); color:#bbb; }
+  .rich strong { font-weight:800; }
+  .block { border-top:1px dashed var(--line); padding:10px 0 2px; }
+  .block:first-of-type { border-top:none; }
+  .bhead { display:flex; align-items:center; gap:6px; margin-bottom:6px; }
+  .tag { font-size:10.5px; color:#888; border:1px solid var(--line); border-radius:4px;
+         padding:1px 6px; background:#fbfbf8; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; }
+  .row > * { flex:1 1 140px; }
+  .sec-title { display:flex; gap:8px; align-items:center; }
+  .sec-title input { font-size:14px; font-weight:700; letter-spacing:.06em; }
+  .add { margin-top:10px; display:flex; gap:7px; flex-wrap:wrap; }
+  #toast { position:fixed; left:50%; bottom:26px; transform:translateX(-50%); background:#1f1f1f;
+           color:#fff; padding:10px 16px; border-radius:9px; font-size:13px; opacity:0;
+           transition:opacity .18s; pointer-events:none; z-index:60; max-width:82vw; }
+  #toast.on { opacity:1; pointer-events:auto; }
+  #toast a { color:#8ee0cf; }
+  #mask { position:fixed; inset:0; background:rgba(0,0,0,.35); display:none; place-items:center; z-index:50; }
+  #mask.on { display:grid; }
+  .modal { background:#fff; width:min(720px,92vw); border-radius:12px; padding:18px;
+           box-shadow:0 10px 40px rgba(0,0,0,.25); }
+  .modal h3 { margin:0 0 8px; font-size:15px; }
+  .modal p { margin:0 0 10px; color:#666; font-size:12px; line-height:1.6; }
+  .modal textarea { width:100%; height:230px; font:13px/1.6 inherit; border:1px solid var(--line);
+                    border-radius:8px; padding:10px; resize:vertical; }
+  .modal .foot { display:flex; justify-content:flex-end; gap:10px; margin-top:12px; }
+  /* 抽屉 */
+  #drawer { position:fixed; top:0; right:0; bottom:0; width:min(430px,94vw); background:#fff;
+            border-left:1px solid var(--line); box-shadow:-12px 0 40px rgba(0,0,0,.12);
+            transform:translateX(102%); transition:transform .22s; z-index:55; display:flex;
+            flex-direction:column; }
+  #drawer.on { transform:none; }
+  #drawer header { display:flex; align-items:center; gap:10px; padding:14px 16px;
+                   border-bottom:1px solid var(--line); }
+  #drawer header b { font-size:14px; }
+  #drawer .body { overflow:auto; padding:14px 16px 30px; }
+  #drawer .kv { display:grid; grid-template-columns:88px 1fr; gap:6px 12px; font-size:12.5px; margin:0 0 14px; }
+  #drawer .kv dt { color:#888; }
+  #drawer .kv dd { margin:0; }
+  #drawer ul { margin:0; padding:0; list-style:none; }
+  #drawer li { font-size:12.5px; color:#7a4a00; background:#fff8ec; border:1px solid #f3e2c4;
+               border-radius:8px; padding:8px 10px; margin-bottom:6px; }
+  #drawer pre { background:#f7f7f4; border:1px solid var(--line); border-radius:8px;
+                padding:10px; font-size:11px; overflow:auto; max-height:260px; }
+  /* 预览页样式 */
+  .pad { position:absolute; left:var(--margin-l); right:var(--margin-r); top:var(--margin-t); }
+  .pname { font-size:var(--name-size); line-height:var(--name-line-h); text-align:center;
+           font-weight:400; margin:0; }
+  .pc { font-size:var(--contact-size); line-height:var(--contact-line-h); text-align:center;
+        color:var(--ink); margin:0; }
+  .pc img { height:9pt; vertical-align:-2pt; margin:0 2pt 0 6pt; }
+  .pc .bar { color:var(--bar); }
+  .ph { font-size:var(--section-size); font-weight:700; line-height:var(--section-line-h);
+        margin:var(--section-sb) 0 0; }
+  .pentry { position:relative; line-height:var(--entry-line-h); }
+  .pentry .t { font-size:var(--entry-size); font-weight:700; }
+  .pentry .m { position:absolute; top:0; font-size:var(--body-size); color:var(--soft); }
+  .pentry .d { position:absolute; right:0; top:0; font-size:var(--body-size); color:var(--soft); }
+  .psub { font-size:var(--body-size); color:var(--soft); line-height:var(--para-line-h); margin:0; }
+  .pb { position:relative; padding-left:14pt; line-height:var(--bullet-line-h); margin:0;
+        font-size:var(--body-size); }
+  .pb::before { content:"•"; position:absolute; left:var(--bx, 5pt); top:0; }
+  .pp { line-height:var(--para-line-h); margin:0; font-size:var(--body-size); }
+  .pagelimit { position:absolute; left:0; right:0; border-top:1px dashed #d2544a; pointer-events:none; }
+  .pagelimit span { position:absolute; right:0; top:-14pt; font-size:7pt; color:#b3261e;
+                    background:#fff; padding:0 3pt; }
+  .logo, .photo { position:absolute; }
+  #emptyStage { position:absolute; inset:0; display:none; place-items:center; color:#8a8a84;
+                font-size:13px; text-align:center; padding:40px; }
+  @media (max-width:900px) { .wrap { grid-template-columns:1fr; } #stage { display:none; } }
+  @media print {
+    @page { size:A4; margin:0; }
+    html, body { height:auto; overflow:visible; background:#fff; }
+    .topbar, #editor, #drawer, #toast, #mask, #emptyStage, .pagelimit { display:none !important; }
+    .wrap { display:block; height:auto; }
+    #stage { display:block !important; height:auto; overflow:visible; background:#fff;
+             border:0; padding:0; }
+    .sheet { width:auto !important; height:auto !important; margin:0; }
+    .paper { transform:none !important; box-shadow:none; margin:0; }
+  }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <a class="back" href="/">← 换模板</a>
+  <h1 id="docTitle">简历编辑</h1>
+  <span id="pagebadge">正在测量…</span>
+  <span class="hint">选中文字 <b>B</b> 或 <kbd>Ctrl</kbd>+<kbd>B</kbd> 加粗 · <kbd>Ctrl</kbd>+<kbd>S</kbd> 保存</span>
+  <span class="grow"></span>
+  <button class="btn" id="reportBtn">识别报告</button>
+  <button class="btn" id="reload">重载</button>
+  <button class="btn" id="printBtn">打印 / 存 PDF</button>
+  <button class="btn primary" id="save">保存为新版本</button>
+</div>
+
+<div class="wrap">
+  <div id="editor">
+    <section class="card">
+      <h2>基本信息</h2>
+      <div class="grid" id="meta"></div>
+    </section>
+    <section class="card">
+      <h2>版式微调 <button class="btn mini" id="themeToggle">收起</button></h2>
+      <div class="grid" id="themeFields"></div>
+    </section>
+    <div id="sections"></div>
+    <button class="btn" id="addSection" style="width:100%;padding:10px">＋ 添加板块</button>
+  </div>
+  <div id="stage">
+    <div class="sheet" id="sheet">
+      <div class="paper" id="paper"></div>
+      <div id="emptyStage">还没有内容，左边加一个板块开始吧。</div>
+    </div>
+  </div>
+</div>
+
+<aside id="drawer">
+  <header>
+    <b>识别报告</b>
+    <span class="grow"></span>
+    <button class="btn mini" id="closeDrawer">关闭</button>
+  </header>
+  <div class="body" id="drawerBody"></div>
+</aside>
+
+<div id="mask">
+  <div class="modal">
+    <h3>粘贴导入到本板块</h3>
+    <p><b>• / - 开头</b>的行 → 要点；带日期的行 → 新条目（“公司｜岗位”或“公司 岗位”）；“标签：”自动加粗标签。</p>
+    <textarea id="pastebox" placeholder="迅雷｜广告设计实习生&#10;2026.08—2026.11&#10;- 数据分析与问题定位：跟踪素材 CTR……&#10;- 跨岗位协作与交付：……"></textarea>
+    <div class="foot">
+      <button class="btn" id="cancelPaste">取消</button>
+      <button class="btn primary" id="doPaste">解析并导入</button>
+    </div>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script>
+const ADD_TYPES = {
+  edu:   [['entry','条目'],['para','段落']],
+  intern:[['entry','条目'],['bullet','要点']],
+  proj:  [['entry','条目'],['subline','小字行'],['bullet','要点']],
+  campus:[['entry','条目'],['bullet','要点']],
+  skill: [['para','段落']],
+  award: [['para','段落']],
+  summary: [['para','段落']]
+};
+const PT = 96 / 72;           // 1pt = 1.333 css px
+const $ = s => document.querySelector(s);
+const el = (tag, props = {}, ...kids) => {
+  const n = document.createElement(tag);
+  Object.assign(n, props);
+  kids.flat().forEach(k => k && n.append(k));
+  return n;
+};
+let state = null;       // {content, theme}
+let report = null;
+let previewTimer = null;
+
+function toast(msg, ms = 3600, html = false) {
+  const t = $('#toast');
+  if (html) t.innerHTML = msg; else t.textContent = msg;
+  t.classList.add('on');
+  clearTimeout(t._t);
+  t._t = setTimeout(() => { t.classList.remove('on'); t.innerHTML = ''; }, ms);
+}
+
+/* ---------------- 内容加载 ---------------- */
+async function load() {
+  const res = await fetch('/api/state');
+  const data = await res.json();
+  if (!data.ready) { location.href = '/'; return; }
+  state = {content: data.state.content, theme: normalizeTheme(data.state.theme)};
+  report = data.state.report || {};
+  if (!state.content._editor) state.content._editor = {};
+  if (!state.content._editor.extras) state.content._editor.extras = [];
+  if (!state.content._editor.basename) state.content._editor.basename = '我的简历';
+  $('#docTitle').textContent = state.content._editor.basename || '简历编辑';
+  render();
+  renderDrawer();
+}
+
+function normalizeTheme(t) {
+  const d = {
+    page:{width:595.28,height:841.89,margin_left:41.5,margin_right:39.8,margin_top:40,margin_bottom:36},
+    fonts:{cjk:'Noto Sans SC',latin:'Arial'},
+    sizes:{name:21.5,section:12.5,entry:11,body:9,body_lg:9.5,contact:9},
+    colors:{ink:'#000000',soft:'#1A1A1A',bar:'#9A9A9A'},
+    spacing:{name_line:26,name_sb:0,contact_line:12,c1_sb:4,c2_sb:6,section_sb:12,
+             section_line:18,entry_sb:2,entry_line:15,para_sb:0,para_line:12,
+             bullet_line:12,sub_sb:0},
+    indent:{bullet_left:14,bullet_hanging:9},
+    header:{logo:null,photo:null},
+    meta_tab:120
+  };
+  const out = JSON.parse(JSON.stringify(d));
+  for (const group of ['page','fonts','sizes','colors','spacing','indent']) {
+    Object.assign(out[group], (t && t[group]) || {});
+  }
+  out.meta_tab = (t && t.meta_tab) || 120;
+  out.header = Object.assign({logo:null,photo:null}, (t && t.header) || {});
+  return out;
+}
+
+/* ---------------- 通用输入 ---------------- */
+function field(label, value, onChange, opts = {}) {
+  const input = el('input', {type: opts.type || 'text', value: value == null ? '' : value});
+  if (opts.step) input.step = opts.step;
+  if (opts.min != null) input.min = opts.min;
+  input.addEventListener('input', () => {
+    onChange(opts.type === 'number' ? Number(input.value) : input.value);
+    schedulePreview();
+  });
+  return el('label', {className:'f'}, label, input);
+}
+
+/* ---------------- 基本信息 ---------------- */
+function renderMeta() {
+  const box = $('#meta'); box.innerHTML = '';
+  const m = state.content._editor;
+  const set = k => v => { m[k] = v; $('#docTitle').textContent = m.basename || '简历编辑'; };
+  box.append(
+    field('姓名', m.name, set('name')),
+    field('电话', m.phone, set('phone')),
+    field('邮箱', m.email, set('email')),
+    field('城市', m.city, set('city')),
+    field('求职意向', m.intent, set('intent')),
+    field('可实习时长', m.availability, set('availability')),
+    field('额外联系方式（逗号分隔）', (m.extras || []).join('，'), v => {
+      m.extras = v.split(/[，,]/).map(s => s.trim()).filter(Boolean);
+    }),
+    field('文件名（决定导出文件名与版本组）', m.basename, set('basename'))
+  );
+}
+
+/* ---------------- 版式微调 ---------------- */
+let themeOpen = true;
+function renderThemeFields() {
+  const box = $('#themeFields'); box.innerHTML = '';
+  const t = state.theme;
+  box.append(
+    field('中文字体', t.fonts.cjk, v => t.fonts.cjk = v || 'Noto Sans SC'),
+    field('西文字体', t.fonts.latin, v => t.fonts.latin = v || 'Arial'),
+    field('姓名字号 pt', t.sizes.name, v => t.sizes.name = v || 21.5, {type:'number', step:0.5, min:8}),
+    field('章节字号 pt', t.sizes.section, v => t.sizes.section = v || 12.5, {type:'number', step:0.5, min:6}),
+    field('条目字号 pt', t.sizes.entry, v => t.sizes.entry = v || 11, {type:'number', step:0.5, min:6}),
+    field('正文字号 pt', t.sizes.body, v => t.sizes.body = v || 9, {type:'number', step:0.5, min:5}),
+    field('正文行距 pt', t.spacing.para_line, v => t.spacing.para_line = v || 12, {type:'number', step:0.5, min:6}),
+    field('上边距 pt', t.page.margin_top, v => t.page.margin_top = v || 40, {type:'number', step:1, min:0}),
+    field('下边距 pt', t.page.margin_bottom, v => t.page.margin_bottom = v || 36, {type:'number', step:1, min:0}),
+    field('左边距 pt', t.page.margin_left, v => t.page.margin_left = v || 41.5, {type:'number', step:1, min:0}),
+    field('右边距 pt', t.page.margin_right, v => t.page.margin_right = v || 39.8, {type:'number', step:1, min:0})
+  );
+}
+$('#themeToggle').onclick = () => {
+  themeOpen = !themeOpen;
+  $('#themeFields').style.display = themeOpen ? '' : 'none';
+  $('#themeToggle').textContent = themeOpen ? '收起' : '展开';
+};
+
+/* ---------------- runs <-> rich ---------------- */
+function runsToNodes(runs) {
+  const frag = document.createDocumentFragment();
+  (runs || []).forEach(([text, bold]) => {
+    if (!text) return;
+    const node = document.createElement(bold ? 'strong' : 'span');
+    node.textContent = text;
+    frag.append(node);
+  });
+  return frag;
+}
+function serialize(root) {
+  const out = [];
+  const push = (text, bold) => {
+    if (!text) return;
+    const last = out[out.length - 1];
+    if (last && last[1] === bold) last[0] += text; else out.push([text, bold]);
+  };
+  const walk = (node, bold) => {
+    if (node.nodeType === Node.TEXT_NODE) { push(node.nodeValue.replace(/\u00a0/g, ' '), bold); return; }
+    if (node.nodeType !== Node.ELEMENT_NODE) return;
+    const tag = node.tagName;
+    if (tag === 'BR') { push(' ', bold); return; }
+    let b = bold;
+    if (tag === 'B' || tag === 'STRONG') b = true;
+    const fw = node.style && node.style.fontWeight;
+    if (fw === 'bold' || fw === 'bolder' || parseInt(fw, 10) >= 600) b = true;
+    node.childNodes.forEach(ch => walk(ch, b));
+  };
+  root.childNodes.forEach(ch => walk(ch, false));
+  if (!out.length) return [['', 0]];
+  out[0][0] = out[0][0].replace(/^\s+/, '');
+  out[out.length - 1][0] = out[out.length - 1][0].replace(/\s+$/, '');
+  const cleaned = out.filter(([t]) => t.length);
+  return cleaned.length ? cleaned : [['', 0]];
+}
+function richEditor(block) {
+  const box = el('div', {className:'rich', contentEditable:'true'});
+  box.dataset.ph = '输入内容，选中后点 B 加粗';
+  box.append(runsToNodes(block.runs));
+  box.addEventListener('input', () => { block.runs = serialize(box); schedulePreview(); });
+  box.addEventListener('keydown', e => { if (e.key === 'Enter') e.preventDefault(); });
+  box.addEventListener('paste', e => {
+    e.preventDefault();
+    const text = ((e.clipboardData || window.clipboardData).getData('text') || '').replace(/\s*\n\s*/g, ' ');
+    document.execCommand('insertText', false, text);
+    block.runs = serialize(box); schedulePreview();
+  });
+  return box;
+}
+
+function blockEditor(sec, block, bi) {
+  const wrap = el('div', {className:'block'});
+  const head = el('div', {className:'bhead'},
+    el('span', {className:'tag', textContent:{entry:'条目',bullet:'要点',para:'段落',subline:'小字行'}[block.type] || block.type}),
+    el('span', {className:'grow'}));
+  const up = el('button', {className:'btn mini', textContent:'↑'});
+  const down = el('button', {className:'btn mini', textContent:'↓'});
+  const del = el('button', {className:'btn mini', textContent:'删除'});
+  up.onclick = () => { if (bi > 0) { [sec.blocks[bi-1], sec.blocks[bi]] = [sec.blocks[bi], sec.blocks[bi-1]]; render(); } };
+  down.onclick = () => { if (bi < sec.blocks.length-1) { [sec.blocks[bi+1], sec.blocks[bi]] = [sec.blocks[bi], sec.blocks[bi+1]]; render(); } };
+  del.onclick = () => { sec.blocks.splice(bi, 1); render(); };
+
+  if (block.type === 'entry') {
+    head.append(up, down, del); wrap.append(head);
+    const row = el('div', {className:'row'});
+    row.append(field('主标题', block.title, v => block.title = v));
+    if (block.meta_segments) {
+      block.meta_segments.forEach((seg, i) => row.append(
+        field(i ? '副标 2' : '副标 1', seg, v => block.meta_segments[i] = v)));
+    } else {
+      row.append(field('副标', block.meta, v => {
+        block.meta = v;
+        if (v && !block.meta_tab) block.meta_tab = state.theme.meta_tab;
+      }));
+    }
+    row.append(field('日期', block.date || '', v => block.date = v || null));
+    wrap.append(row);
+
+    const posRow = el('div', {className:'row', style:'margin-top:8px'});
+    const positions = block.meta_segments ? (block.meta_tabs || []).join(', ') : (block.meta_tab || '');
+    const posInput = el('input', {type:'text', value: positions, placeholder:'副标位置，例如 62, 132'});
+    posInput.addEventListener('input', () => {
+      const nums = posInput.value.split(/[，,\s]+/).map(Number).filter(n => n > 0);
+      if (!nums.length) return;
+      if (block.meta_segments) block.meta_tabs = nums;
+      else block.meta_tab = nums[0];
+      schedulePreview();
+    });
+    posRow.append(el('label', {className:'f'},
+      '副标位置 pt（用逗号分隔多个副标）', posInput));
+    wrap.append(posRow);
+    return wrap;
+  }
+
+  if (block.type === 'subline') {
+    head.append(up, down, del); wrap.append(head);
+    const input = el('input', {type:'text', value: block.text || ''});
+    input.addEventListener('input', () => { block.text = input.value; schedulePreview(); });
+    wrap.append(input);
+    return wrap;
+  }
+
+  const box = richEditor(block);
+  const bold = el('button', {className:'btn boldbtn', title:'加粗（Ctrl+B）', textContent:'B'});
+  bold.onmousedown = e => e.preventDefault();
+  bold.onclick = () => { box.focus(); document.execCommand('bold'); block.runs = serialize(box); schedulePreview(); };
+  head.append(bold, up, down, del);
+  wrap.append(head, box);
+  return wrap;
+}
+
+function newBlock(type) {
+  const body = state.theme.sizes.body;
+  if (type === 'entry') return {type:'entry', title:'新条目', meta:'', meta_tab: state.theme.meta_tab, date:null};
+  if (type === 'subline') return {type:'subline', text:'说明文字'};
+  if (type === 'bullet') return {type:'bullet', runs:[['标签：', 1], ['内容', 0]]};
+  return {type:'para', size: body, runs:[['标签：', 1], ['内容', 0]]};
+}
+
+function renderSections() {
+  const host = $('#sections'); host.innerHTML = '';
+  state.content.sections.forEach((sec, si) => {
+    const card = el('section', {className:'card'});
+    const title = el('input', {type:'text', value: sec.title});
+    title.addEventListener('input', () => { sec.title = title.value; schedulePreview(); });
+
+    const secUp = el('button', {className:'btn mini', textContent:'↑', title:'上移板块'});
+    secUp.onclick = () => {
+      if (si > 0) { [state.content.sections[si-1], state.content.sections[si]] = [state.content.sections[si], state.content.sections[si-1]]; render(); }
+    };
+    const secDown = el('button', {className:'btn mini', textContent:'↓', title:'下移板块'});
+    secDown.onclick = () => {
+      if (si < state.content.sections.length-1) {
+        [state.content.sections[si+1], state.content.sections[si]] = [state.content.sections[si], state.content.sections[si+1]];
+        render();
+      }
+    };
+    const secDel = el('button', {className:'btn mini', textContent:'删除板块'});
+    secDel.onclick = () => {
+      if (confirm('删除「' + sec.title + '」和它的全部内容？')) {
+        state.content.sections.splice(si, 1); render();
+      }
+    };
+    const bar = el('div', {className:'sec-title'}, title, secUp, secDown, secDel);
+    card.append(bar);
+    sec.blocks.forEach((b, bi) => card.append(blockEditor(sec, b, bi)));
+
+    const add = el('div', {className:'add'});
+    (ADD_TYPES[sec.key] || [['entry','条目'],['bullet','要点'],['para','段落'],['subline','小字行']])
+      .forEach(([type, label]) => {
+        const btn = el('button', {className:'btn', textContent:'＋ ' + label});
+        btn.onclick = () => { sec.blocks.push(newBlock(type)); render(); };
+        add.append(btn);
+      });
+    const imp = el('button', {className:'btn', textContent:'⇩ 粘贴导入'});
+    imp.onclick = () => openPaste(sec);
+    add.append(imp);
+    card.append(add);
+    host.append(card);
+  });
+}
+
+$('#addSection').onclick = () => {
+  const n = state.content.sections.length + 1;
+  state.content.sections.push({key:'sec' + n, title:'新板块', blocks:[]});
+  render();
+};
+
+function render() { renderMeta(); renderThemeFields(); renderSections(); schedulePreview(true); }
+
+/* ---------------- 预览 ---------------- */
+function schedulePreview(immediate) {
+  clearTimeout(previewTimer);
+  previewTimer = setTimeout(renderPreview, immediate ? 0 : 110);
+}
+
+function headerParts(m) {
+  const line1 = [], line2 = [];
+  const add = text => {
+    text = (text || '').trim();
+    if (!text) return;
+    if (line1.length) line1.push({bar:true});
+    line1.push({t:text});
+  };
+  add(m.phone);
+  add(m.email);
+  add(m.city);
+  (m.extras || []).forEach(x => add(x));
+  if (m.intent) line2.push({t:'求职意向：' + m.intent + ' '});
+  if (m.availability) {
+    if (line2.length) line2.push({bar:true});
+    line2.push({t:' ' + m.availability});
+  }
+  return [line1, line2];
+}
+
+function pvEntry(block, t) {
+  const row = el('div', {className:'pentry'});
+  row.style.marginTop = (t.spacing.entry_sb || 0) + 'pt';
+  row.style.lineHeight = t.spacing.entry_line + 'pt';
+  row.append(el('span', {className:'t', textContent: block.title || ''}));
+  if (block.meta_segments) {
+    block.meta_segments.forEach((seg, i) => {
+      const left = (block.meta_tabs && block.meta_tabs[i]) || 100;
+      const m = el('span', {className:'m', textContent: seg});
+      m.style.left = left + 'pt';
+      row.append(m);
+    });
+  } else if (block.meta) {
+    const m = el('span', {className:'m', textContent: block.meta});
+    m.style.left = (block.meta_tab || t.meta_tab || 100) + 'pt';
+    row.append(m);
+  }
+  if (block.date) row.append(el('span', {className:'d', textContent: block.date}));
+  return row;
+}
+
+function pvRuns(runs, tag) {
+  const n = el(tag);
+  (runs || []).forEach(([text, bold]) => {
+    if (!text) return;
+    if (bold) n.append(el('strong', {textContent:text}));
+    else n.append(document.createTextNode(text));
+  });
+  return n;
+}
+
+function applyThemeVars(t) {
+  const paper = $('#paper');
+  paper.style.setProperty('--ink', t.colors.ink);
+  paper.style.setProperty('--soft', t.colors.soft);
+  paper.style.setProperty('--bar', t.colors.bar);
+  paper.style.setProperty('--font-cjk', '"' + t.fonts.cjk + '","Microsoft YaHei",sans-serif');
+  paper.style.setProperty('--font-latin', '"' + t.fonts.latin + '",sans-serif');
+  paper.style.setProperty('--page-w', t.page.width + 'pt');
+  paper.style.setProperty('--page-h', t.page.height + 'pt');
+  paper.style.setProperty('--margin-l', t.page.margin_left + 'pt');
+  paper.style.setProperty('--margin-r', t.page.margin_right + 'pt');
+  paper.style.setProperty('--margin-t', t.page.margin_top + 'pt');
+  paper.style.setProperty('--margin-b', t.page.margin_bottom + 'pt');
+  paper.style.setProperty('--name-size', t.sizes.name + 'pt');
+  paper.style.setProperty('--name-line-h', t.spacing.name_line + 'pt');
+  paper.style.setProperty('--contact-size', t.sizes.contact + 'pt');
+  paper.style.setProperty('--contact-line-h', t.spacing.contact_line + 'pt');
+  paper.style.setProperty('--section-size', t.sizes.section + 'pt');
+  paper.style.setProperty('--section-line-h', t.spacing.section_line + 'pt');
+  paper.style.setProperty('--section-sb', t.spacing.section_sb + 'pt');
+  paper.style.setProperty('--entry-size', t.sizes.entry + 'pt');
+  paper.style.setProperty('--entry-line-h', t.spacing.entry_line + 'pt');
+  paper.style.setProperty('--body-size', t.sizes.body + 'pt');
+  paper.style.setProperty('--para-line-h', t.spacing.para_line + 'pt');
+  paper.style.setProperty('--bullet-line-h', t.spacing.bullet_line + 'pt');
+}
+
+function renderPreview() {
+  const paper = $('#paper');
+  const t = state.theme;
+  const m = state.content._editor;
+  applyThemeVars(t);
+  paper.style.width = t.page.width + 'pt';
+  paper.style.height = t.page.height + 'pt';
+  paper.innerHTML = '';
+
+  const logo = t.header.logo, photo = t.header.photo;
+  if (logo) {
+    const img = el('img', {className:'logo', src:'/assets/' + logo.file});
+    Object.assign(img.style, {left:logo.x + 'pt', top:logo.y + 'pt', width:logo.w + 'pt',
+                              height:logo.h + 'pt'});
+    img.onerror = () => img.remove();
+    paper.append(img);
+  }
+  if (photo) {
+    const img = el('img', {className:'photo', src:'/assets/' + photo.file});
+    Object.assign(img.style, {left:photo.x + 'pt', top:photo.y + 'pt', width:photo.w + 'pt',
+                              height:photo.h + 'pt'});
+    img.onerror = () => img.remove();
+    paper.append(img);
+  }
+
+  const pad = el('div', {className:'pad'});
+  const name = el('div', {className:'pname', textContent: m.name || ''});
+  if (photo) name.style.paddingRight = (photo.w + 8) + 'pt';
+  pad.append(name);
+
+  const [line1, line2] = headerParts(m);
+  let first = true;
+  [line1, line2].forEach(parts => {
+    if (!parts.length) return;
+    const line = el('div', {className:'pc'});
+    line.style.marginTop = (first ? (t.spacing.c1_sb || 0) : (t.spacing.c2_sb || 0)) + 'pt';
+    first = false;
+    parts.forEach(part => {
+      if (part.bar) line.append(el('span', {className:'bar', textContent:'  |  '}));
+      else line.append(document.createTextNode(part.t));
+    });
+    pad.append(line);
+  });
+
+  (state.content.sections || []).forEach(sec => {
+    pad.append(el('div', {className:'ph', textContent: sec.title}));
+    (sec.blocks || []).forEach(b => {
+      if (b.type === 'entry') pad.append(pvEntry(b, t));
+      else if (b.type === 'subline') pad.append(el('div', {className:'psub', textContent: b.text || ''}));
+      else if (b.type === 'bullet') {
+        const p = pvRuns(b.runs, 'div');
+        p.className = 'pb';
+        p.style.paddingLeft = (t.indent.bullet_left || 14) + 'pt';
+        p.style.setProperty('--bx', ((t.indent.bullet_left || 14) - (t.indent.bullet_hanging || 9)) + 'pt');
+        pad.append(p);
+      } else {
+        const size = b.size || t.sizes.body;
+        const p = pvRuns(b.runs, 'div');
+        p.className = 'pp';
+        p.style.fontSize = size + 'pt';
+        p.style.lineHeight = (t.spacing.para_line * Math.max(1, size / t.sizes.body)).toFixed(2) + 'pt';
+        pad.append(p);
+      }
+    });
+  });
+  paper.append(pad);
+
+  const limit = el('div', {className:'pagelimit'});
+  limit.style.top = (t.page.height - t.page.margin_bottom) + 'pt';
+  limit.append(el('span', {textContent:'第 1 页底边'}));
+  paper.append(limit);
+
+  fitPreview();
+  measure();
+}
+
+function fitPreview() {
+  const stage = $('#stage');
+  const paper = $('#paper');
+  const t = state.theme;
+  const avail = stage.clientWidth - 32;
+  const scale = Math.min(1, avail / (t.page.width * PT));
+  paper.style.transform = 'scale(' + scale + ')';
+  const sheet = $('#sheet');
+  sheet.style.width = (t.page.width * PT * scale) + 'px';
+  sheet.style.height = (t.page.height * PT * scale) + 'px';
+  $('#emptyStage').style.display = (state.content.sections.length ? 'none' : 'grid');
+}
+
+function measure() {
+  const pad = $('#paper .pad');
+  if (!pad) return;
+  const t = state.theme;
+  const badge = $('#pagebadge');
+  const usable = t.page.height - t.page.margin_top - t.page.margin_bottom;
+  const used = pad.offsetHeight / PT;   // 用布局高度，不能用被缩放后的 boundingRect
+  const remain = usable - used;
+  const line = t.spacing.bullet_line || 12;
+
+  if (remain >= 0) {
+    const lines = Math.floor(remain / line);
+    badge.textContent = lines >= 1 ? '✅ 一页装得下 · 还剩约 ' + lines + ' 行' : '✅ 刚好一页 · 已无余量';
+    badge.classList.remove('warn');
+    badge.title = '正文高度 ' + used.toFixed(1) + 'pt / 可用 ' + usable.toFixed(1) + 'pt';
+  } else {
+    const over = Math.ceil((-remain) / line);
+    const pages = 1 + Math.ceil((-remain) / usable);
+    badge.textContent = '⚠️ 超出一页 · 多出约 ' + over + ' 行' + (pages > 1 ? '（共约 ' + pages + ' 页）' : '');
+    badge.classList.add('warn');
+    badge.title = '正文高度 ' + used.toFixed(1) + 'pt / 可用 ' + usable.toFixed(1) + 'pt — 删 1-2 条要点，或调小正文行距';
+  }
+}
+
+/* ---------------- 粘贴导入 ---------------- */
+let pasteTarget = null;
+function openPaste(sec) { pasteTarget = sec; $('#pastebox').value = ''; $('#mask').classList.add('on'); $('#pastebox').focus(); }
+function closePaste() { $('#mask').classList.remove('on'); }
+const DATE_RE = /(\d{4}[.\-/年]\s?\d{1,2})\s*[-—–~至]\s*(\d{4}[.\-/年]\s?\d{1,2}|至今|现在)/;
+const DATE_ONLY = /^\s*\d{4}[.\-/年]\d{1,2}\s*[-—–~至]\s*(\d{4}[.\-/年]\d{1,2}|至今|现在)\s*$/;
+
+function splitLabel(text) {
+  const i = text.indexOf('：');
+  if (i > 0 && i <= 16) return [[text.slice(0, i + 1), 1], [text.slice(i + 1), 0]];
+  return [[text, 0]];
+}
+function parseResumeText(text) {
+  const lines = text.split(/\r?\n/).map(s => s.replace(/\u00a0/g, ' ').trim()).filter(Boolean);
+  const blocks = [];
+  lines.forEach(line => {
+    if (DATE_ONLY.test(line)) {
+      const last = blocks[blocks.length - 1];
+      if (last && last.type === 'entry' && !last.date) last.date = line.replace(/\s/g, '');
+      return;
+    }
+    if (/^[•·\-*—]\s+/.test(line) || /^[•·]/.test(line)) {
+      const body = line.replace(/^[•·\-*—]+\s*/, '');
+      blocks.push({type:'bullet', runs: splitLabel(body)});
+      return;
+    }
+    const match = line.match(DATE_RE);
+    if (match) {
+      const date = (match[1] + '—' + match[2]).replace(/\s/g, '');
+      const rest = line.replace(match[0], '').replace(/[｜|]\s*$/, '').trim();
+      const parts = rest.split(/\s*[｜|]\s*|\t+|\s{2,}/).filter(Boolean);
+      blocks.push({type:'entry', title: parts[0] || rest, meta: parts.slice(1).join(' / '),
+                   meta_tab: state.theme.meta_tab, date});
+      return;
+    }
+    if (/[｜|]/.test(line) && line.length <= 48) {
+      const parts = line.split(/\s*[｜|]\s*/).filter(Boolean);
+      blocks.push({type:'entry', title: parts[0], meta: parts.slice(1).join(' / '),
+                   meta_tab: state.theme.meta_tab, date:null});
+      return;
+    }
+    blocks.push({type:'para', size: state.theme.sizes.body, runs: splitLabel(line)});
+  });
+  return blocks;
+}
+$('#cancelPaste').onclick = closePaste;
+$('#mask').onclick = e => { if (e.target.id === 'mask') closePaste(); };
+$('#doPaste').onclick = () => {
+  const blocks = parseResumeText($('#pastebox').value);
+  if (!blocks.length) { toast('没解析出内容'); return; }
+  pasteTarget.blocks.push(...blocks);
+  closePaste(); render();
+  toast('已导入 ' + blocks.length + ' 个块');
+};
+
+/* ---------------- 报告 ---------------- */
+function renderDrawer() {
+  const box = $('#drawerBody'); box.innerHTML = '';
+  const r = report || {};
+  const kv = el('dl', {className:'kv'});
+  const row = (k, v) => { kv.append(el('dt', {textContent:k}), el('dd', {textContent:v})); };
+  row('来源', (r.source || '—') + ' ｜ ' + (r.file || '—'));
+  row('可信度', (r.confidence_label || '—') + '（' + Math.round((r.confidence || 0) * 100) + '%）');
+  row('结构', (r.counts ? r.counts.sections + ' 板块 · ' + r.counts.entries + ' 条目 · ' +
+              r.counts.bullets + ' 要点 · ' + r.counts.chars + ' 字' : '—'));
+  row('版式', r.theme ? r.theme.fonts + ' · 正文 ' + r.theme.body + 'pt' : '—');
+  row('边距', r.theme ? r.theme.margins + ' pt' : '—');
+  row('估算', r.fit ? r.fit.pages + ' 页 · 余 ' + r.fit.remaining + 'pt' : '—');
+  row('耗时', r.timings ? '读取 ' + (r.timings.read || 0) + 'ms · 结构 ' + (r.timings.structure || 0) +
+              'ms · 版式 ' + (r.timings.theme || 0) + 'ms' : '—');
+  box.append(kv);
+
+  if (r.warnings && r.warnings.length) {
+    box.append(el('div', {className:'tag', textContent:'识别提示', style:'display:inline-block;margin-bottom:8px'}));
+    const ul = el('ul');
+    r.warnings.forEach(w => ul.append(el('li', {textContent:w})));
+    box.append(ul);
+  }
+  if (r.notes && r.notes.length) {
+    const ul = el('ul', {style:'margin-top:8px'});
+    r.notes.forEach(n => ul.append(el('li', {textContent:n, style:'color:#555;background:#f7f7f4;border-color:#e5e5e0'})));
+    box.append(ul);
+  }
+  const details = el('details', {style:'margin-top:10px'});
+  details.append(el('summary', {textContent:'查看 theme.json', style:'cursor:pointer;font-size:12px;color:#888'}));
+  details.append(el('pre', {textContent:JSON.stringify(state.theme, null, 2)}));
+  box.append(details);
+}
+$('#reportBtn').onclick = () => { renderDrawer(); $('#drawer').classList.add('on'); };
+$('#closeDrawer').onclick = () => $('#drawer').classList.remove('on');
+
+/* ---------------- 保存 / 导出 ---------------- */
+$('#save').onclick = async () => {
+  const btn = $('#save');
+  btn.disabled = true; btn.textContent = '生成中…';
+  try {
+    const res = await fetch('/api/save', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({content: state.content, theme: state.theme})
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || '保存失败');
+    toast('已保存 v' + data.version + '：<a href="' + data.download + '">下载 ' + data.docx + '</a>', 8000, true);
+  } catch (err) {
+    toast('保存失败：' + (err.message || err), 6000);
+  } finally {
+    btn.disabled = false; btn.textContent = '保存为新版本';
+  }
+};
+
+$('#printBtn').onclick = () => {
+  const restore = () => window.removeEventListener('afterprint', restore);
+  window.addEventListener('afterprint', restore);
+  toast('在打印对话框里选「另存为 PDF」，纸张 A4、边距「无」效果最好。', 5000);
+  window.print();
+};
+
+$('#reload').onclick = () => { if (confirm('放弃本次未保存的修改？')) load(); };
+window.addEventListener('resize', () => { if (state) { fitPreview(); measure(); } });
+window.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); $('#save').click(); }
+});
+load();
+</script>
+</body>
+</html>

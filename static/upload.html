@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>简历 Agent · 上传模板，自动识别版式</title>
+<style>
+  :root { --ink:#171717; --muted:#6b6b6b; --line:#e3e3df; --bg:#f6f6f3; --card:#fff;
+          --accent:#0b6b5f; --accent-soft:#e7f3ef; --warn:#b3261e; --warn-soft:#fdecec; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; }
+  body { background:var(--bg); color:var(--ink); font:14px/1.6 -apple-system,"Segoe UI",
+         "Microsoft YaHei","Noto Sans SC",sans-serif; -webkit-font-smoothing:antialiased; }
+  a { color:var(--accent); text-decoration:none; }
+  .topbar { height:58px; display:flex; align-items:center; gap:10px; padding:0 22px;
+            background:#fff; border-bottom:1px solid var(--line); position:sticky; top:0; z-index:9; }
+  .brand { display:flex; align-items:center; gap:9px; font-weight:700; letter-spacing:.02em; }
+  .brand .mark { width:26px; height:26px; border-radius:7px; background:var(--accent);
+                 color:#fff; display:grid; place-items:center; font-size:13px; font-weight:800; }
+  .brand small { color:var(--muted); font-weight:500; font-size:12px; letter-spacing:0; }
+  .grow { flex:1; }
+  .ghost { border:1px solid var(--line); background:#fff; color:var(--ink); border-radius:7px;
+           padding:6px 11px; font:13px inherit; cursor:pointer; }
+  .ghost:hover { border-color:#bbb; }
+  main { max-width:1060px; margin:0 auto; padding:44px 22px 80px; }
+  .hero h1 { font-size:30px; line-height:1.35; margin:0 0 10px; letter-spacing:.01em; }
+  .hero h1 em { font-style:normal; color:var(--accent); }
+  .hero p { margin:0 0 26px; color:var(--muted); font-size:14.5px; max-width:640px; }
+  .cols { display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr); gap:22px; align-items:start; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:24px; }
+  .steps { display:flex; gap:8px; margin-bottom:18px; }
+  .step { flex:1; font-size:12px; color:var(--muted); border-top:2px solid var(--line);
+          padding-top:8px; }
+  .step.on { color:var(--accent); border-top-color:var(--accent); font-weight:600; }
+  .drop { border:1.5px dashed #cfcfc8; border-radius:12px; padding:38px 22px; text-align:center;
+          background:#fcfcfa; transition:.16s; cursor:pointer; }
+  .drop:hover, .drop.over { border-color:var(--accent); background:var(--accent-soft); }
+  .drop .icon { width:44px; height:44px; margin:0 auto 12px; color:var(--accent); }
+  .drop b { font-size:15px; display:block; margin-bottom:6px; }
+  .drop span { color:var(--muted); font-size:12.5px; }
+  .drop .types { margin-top:12px; display:flex; gap:6px; justify-content:center; flex-wrap:wrap; }
+  .pill { font-size:11px; color:var(--muted); border:1px solid var(--line); border-radius:20px;
+          padding:2px 9px; background:#fff; }
+  .or { display:flex; align-items:center; gap:10px; color:#a8a8a2; font-size:12px; margin:18px 0; }
+  .or::before, .or::after { content:""; flex:1; height:1px; background:var(--line); }
+  .row { display:flex; gap:10px; flex-wrap:wrap; }
+  .btn { border:1px solid var(--line); background:#fff; color:var(--ink); border-radius:8px;
+         padding:9px 15px; font:13.5px inherit; cursor:pointer; }
+  .btn:hover { border-color:#bbb; }
+  .btn.primary { background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600; }
+  .btn.primary:hover { filter:brightness(1.09); }
+  .btn:disabled { opacity:.5; cursor:not-allowed; }
+  .btn.wide { width:100%; padding:11px; font-size:14px; }
+  .hintline { margin-top:14px; color:var(--muted); font-size:12px; }
+  .side h3 { font-size:13px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted);
+             margin:0 0 12px; font-weight:600; }
+  .flow { list-style:none; margin:0; padding:0; }
+  .flow li { position:relative; padding:0 0 16px 26px; font-size:13px; color:#333; }
+  .flow li::before { content:""; position:absolute; left:5px; top:7px; width:7px; height:7px;
+                     border-radius:50%; background:var(--accent); }
+  .flow li::after { content:""; position:absolute; left:8px; top:18px; bottom:2px; width:1px;
+                    background:var(--line); }
+  .flow li:last-child::after { display:none; }
+  .flow b { display:block; font-size:13px; }
+  .flow span { color:var(--muted); font-size:12px; }
+  .side .note { margin-top:6px; padding:12px 14px; border-radius:10px; background:#fbfbf8;
+                border:1px solid var(--line); color:var(--muted); font-size:12px; }
+  /* 结果 */
+  #result { display:none; }
+  .res-head { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:4px; }
+  .res-head h2 { margin:0; font-size:20px; }
+  .badge { font-size:12px; font-weight:600; border-radius:20px; padding:4px 11px;
+           background:var(--accent-soft); color:var(--accent); }
+  .badge.mid { background:#fff4e0; color:#8a5a00; }
+  .badge.low { background:var(--warn-soft); color:var(--warn); }
+  .fileline { color:var(--muted); font-size:12.5px; margin:6px 0 18px; word-break:break-all; }
+  .stats { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:18px; }
+  .stat { background:#fbfbf8; border:1px solid var(--line); border-radius:10px; padding:10px 12px; }
+  .stat b { display:block; font-size:20px; line-height:1.2; }
+  .stat span { color:var(--muted); font-size:11.5px; }
+  .kv { display:grid; grid-template-columns:78px 1fr; gap:6px 12px; font-size:12.5px; margin:0 0 14px; }
+  .kv dt { color:var(--muted); }
+  .kv dd { margin:0; }
+  .warns { margin:0 0 16px; padding:0; list-style:none; }
+  .warns li { font-size:12.5px; color:#7a4a00; background:#fff8ec; border:1px solid #f3e2c4;
+              border-radius:8px; padding:8px 11px; margin-bottom:6px; }
+  .warns li.err { color:var(--warn); background:var(--warn-soft); border-color:#f2cfcd; }
+  .warns li.note { color:#555; background:#f7f7f4; border-color:#e5e5e0; }
+  .timing { color:#9a9a94; font-size:11.5px; margin-top:10px; }
+  /* 进度 */
+  #busy { position:fixed; inset:0; background:rgba(246,246,243,.86); backdrop-filter:blur(3px);
+          display:none; place-items:center; z-index:40; }
+  #busy.on { display:grid; }
+  .busybox { width:min(380px,86vw); background:#fff; border:1px solid var(--line); border-radius:14px;
+             padding:26px; text-align:center; box-shadow:0 16px 50px rgba(0,0,0,.10); }
+  .spinner { width:30px; height:30px; border:2.5px solid #e2e2dc; border-top-color:var(--accent);
+             border-radius:50%; margin:0 auto 14px; animation:spin .8s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .busybox b { display:block; margin-bottom:6px; }
+  .busybox p { margin:0; color:var(--muted); font-size:12.5px; }
+  .bar { height:4px; background:#eee; border-radius:3px; overflow:hidden; margin-top:16px; }
+  .bar i { display:block; height:100%; width:34%; background:var(--accent); border-radius:3px;
+           animation:slide 1.1s ease-in-out infinite; }
+  @keyframes slide { 0%{margin-left:-34%} 100%{margin-left:100%} }
+  /* 粘贴弹窗 */
+  #mask { position:fixed; inset:0; background:rgba(0,0,0,.32); display:none; place-items:center; z-index:45; }
+  #mask.on { display:grid; }
+  .modal { background:#fff; width:min(680px,92vw); border-radius:14px; padding:22px; }
+  .modal h3 { margin:0 0 6px; font-size:16px; }
+  .modal p { margin:0 0 10px; color:var(--muted); font-size:12.5px; }
+  .modal textarea { width:100%; height:220px; border:1px solid var(--line); border-radius:10px;
+                    padding:12px; font:13px/1.7 inherit; resize:vertical; }
+  .modal .foot { display:flex; justify-content:flex-end; gap:10px; margin-top:12px; }
+  @media (max-width:860px) { .cols { grid-template-columns:1fr; } .stats { grid-template-columns:repeat(2,1fr); } }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="brand"><span class="mark">R</span>简历 Agent <small>上传 → 识别 → 编辑</small></div>
+  <div class="grow"></div>
+  <a class="ghost" href="/editor" id="continueDraft" style="display:none">继续上次的草稿</a>
+  <a class="ghost" href="https://github.com/hexiaobing034-lang/resume-agent" target="_blank" rel="noopener">GitHub</a>
+</div>
+
+<main>
+  <section class="hero" id="hero">
+    <h1>把你的简历模板丢进来，<em>版式和内容一次认完</em></h1>
+    <p>不上传云端、不注册账号。本地读出字号、行距、边距、照片位置和章节结构，
+       直接在浏览器里改字，保存时生成新的 docx，旧版本不覆盖。</p>
+  </section>
+
+  <div class="cols" id="uploadView">
+    <div class="card">
+      <div class="steps">
+        <div class="step on">1 · 上传</div>
+        <div class="step">2 · 识别</div>
+        <div class="step">3 · 编辑</div>
+      </div>
+
+      <div class="drop" id="drop">
+        <svg class="icon" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"
+             stroke-linecap="round" stroke-linejoin="round">
+          <path d="M24 33V10m0 0-8 8m8-8 8 8"/><path d="M9 31v6a3 3 0 0 0 3 3h24a3 3 0 0 0 3-3v-6"/>
+        </svg>
+        <b>拖入文件，或点击选择</b>
+        <span>支持 .docx / .pdf / .txt，单文件 ≤ 20MB</span>
+        <div class="types"><span class="pill">docx 版式最准</span><span class="pill">pdf 只还原内容</span>
+          <span class="pill">txt 套默认排版</span></div>
+        <input type="file" id="file" accept=".docx,.pdf,.txt,.md" hidden>
+      </div>
+
+      <div class="or">或者</div>
+      <div class="row">
+        <button class="btn" id="sampleBtn">用示例简历试一下</button>
+        <button class="btn" id="pasteBtn">直接粘贴文字</button>
+      </div>
+      <div class="hintline" id="hint">文件只在本机处理：上传到 127.0.0.1，不经过任何外部服务。</div>
+    </div>
+
+    <aside class="card side">
+      <h3>识别 Agent 做什么</h3>
+      <ol class="flow">
+        <li><b>读结构</b><span>姓名、联系方式、章节标题、条目、要点、加粗标签</span></li>
+        <li><b>认版式</b><span>字号、字体、颜色、行距、段距、页边距、logo 与证件照坐标</span></li>
+        <li><b>给可编辑稿</b><span>生成结构化 JSON，进编辑页改字，实时 A4 预览</span></li>
+        <li><b>出文件</b><span>每次保存生成新版本 docx，可再导出 PDF</span></li>
+      </ol>
+      <div class="note">识别是规则驱动的，离线可跑；不确定的地方会在结果里标出来，不瞎猜你的经历。</div>
+    </aside>
+  </div>
+
+  <div class="card" id="result">
+    <div class="res-head">
+      <h2 id="resTitle">识别完成</h2>
+      <span class="badge" id="resBadge">可信度 高</span>
+    </div>
+    <div class="fileline" id="resFile"></div>
+
+    <div class="stats">
+      <div class="stat"><b id="sSections">0</b><span>板块</span></div>
+      <div class="stat"><b id="sEntries">0</b><span>条目</span></div>
+      <div class="stat"><b id="sBullets">0</b><span>要点</span></div>
+      <div class="stat"><b id="sFit">—</b><span>预计页数</span></div>
+    </div>
+
+    <dl class="kv">
+      <dt>来源格式</dt><dd id="kSource">—</dd>
+      <dt>字体</dt><dd id="kFonts">—</dd>
+      <dt>字号</dt><dd id="kSizes">—</dd>
+      <dt>页边距</dt><dd id="kMargins">—</dd>
+      <dt>页面</dt><dd id="kPage">—</dd>
+      <dt>一页估算</dt><dd id="kFit">—</dd>
+    </dl>
+
+    <ul class="warns" id="warns"></ul>
+    <div class="timing" id="timing"></div>
+
+    <div class="row" style="margin-top:18px">
+      <button class="btn primary" id="toEditor">进入编辑 →</button>
+      <button class="btn" id="againBtn">换个文件</button>
+      <a class="btn" id="jsonBtn" download="识别结果.json">下载识别结果</a>
+    </div>
+  </div>
+</main>
+
+<div id="busy">
+  <div class="busybox">
+    <div class="spinner"></div>
+    <b>正在识别版式…</b>
+    <p id="busyText">读文件 → 拆结构 → 认版式</p>
+    <div class="bar"><i></i></div>
+  </div>
+</div>
+
+<div id="mask">
+  <div class="modal">
+    <h3>粘贴简历文字</h3>
+    <p>按行贴进来即可：<b>• / - 开头</b> → 要点；带日期的行 → 条目；「标签：」自动加粗。</p>
+    <textarea id="pastebox" placeholder="张三｜产品运营实习生&#10;2023.09—2024.06&#10;• 数据分析与复盘：跟踪素材 CTR……&#10;• 跨岗位协作：……"></textarea>
+    <div class="foot">
+      <button class="btn" id="cancelPaste">取消</button>
+      <button class="btn primary" id="doPaste">识别这段文字</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+let lastReport = null;
+
+function setBusy(on, text) {
+  $('#busy').classList.toggle('on', !!on);
+  if (text) $('#busyText').textContent = text;
+}
+
+async function postFile(url, file) {
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {'X-Filename': encodeURIComponent(file.name), 'Content-Type': 'application/octet-stream'},
+    body: file
+  });
+  return res.json();
+}
+
+async function handleResponse(promise) {
+  setBusy(true);
+  try {
+    const data = await promise;
+    if (!data.ok) throw new Error(data.error || '识别失败');
+    showResult(data);
+  } catch (err) {
+    alert(err.message || String(err));
+  } finally {
+    setBusy(false);
+  }
+}
+
+function showResult(data) {
+  lastReport = data.report;
+  const r = data.report;
+  $('#uploadView').style.display = 'none';
+  $('#hero').style.display = 'none';
+  $('#result').style.display = 'block';
+  $('#resFile').textContent = (r.file || '粘贴文本') + ' ｜ 来源 ' + (r.source || '—');
+
+  const badge = $('#resBadge');
+  badge.textContent = '可信度 ' + r.confidence_label + ' · ' + Math.round(r.confidence * 100) + '%';
+  badge.className = 'badge' + (r.confidence >= .8 ? '' : r.confidence >= .6 ? ' mid' : ' low');
+
+  $('#sSections').textContent = r.counts.sections;
+  $('#sEntries').textContent = r.counts.entries;
+  $('#sBullets').textContent = r.counts.bullets;
+  $('#sFit').textContent = r.fit.pages.toFixed(2);
+
+  const names = {docx: 'Word 文档（版式可还原）', pdf: 'PDF（只还原内容结构）', text: '纯文本（套默认版式）'};
+  $('#kSource').textContent = names[r.source] || r.source;
+  $('#kFonts').textContent = r.theme.fonts;
+  $('#kSizes').textContent = '正文 ' + r.theme.body + 'pt ｜ 姓名 ' + r.theme.name + 'pt ｜ 标题 ' + r.theme.section + 'pt ｜ 条目 ' + r.theme.entry + 'pt';
+  $('#kMargins').textContent = r.theme.margins + ' pt（上/右/下/左）';
+  $('#kPage').textContent = r.theme.page;
+  $('#kFit').textContent = r.fit.pages.toFixed(2) + ' 页 ｜ 余量 ' + r.fit.remaining + 'pt' + (r.fit.fits ? '' : '（超页，编辑页会提示删哪类内容）');
+
+  const warns = $('#warns');
+  warns.innerHTML = '';
+  (r.warnings || []).forEach(w => {
+    const li = document.createElement('li');
+    li.className = /读不到|没有|失败|不支持/.test(w) ? 'err' : '';
+    li.textContent = w;
+    warns.append(li);
+  });
+  (r.notes || []).forEach(n => {
+    const li = document.createElement('li');
+    li.className = 'note';
+    li.textContent = n;
+    warns.append(li);
+  });
+  if (!warns.children.length) warns.style.display = 'none';
+
+  const t = r.timings || {};
+  $('#timing').textContent = '读取 ' + (t.read || 0) + 'ms · 结构 ' + (t.structure || 0) + 'ms · 版式 ' + (t.theme || 0) + 'ms';
+
+  const blob = new Blob([JSON.stringify({content: data.content, theme: data.theme, report: r}, null, 2)],
+                        {type: 'application/json'});
+  $('#jsonBtn').href = URL.createObjectURL(blob);
+  window.scrollTo({top: 0, behavior: 'smooth'});
+}
+
+// 上传
+$('#drop').onclick = () => $('#file').click();
+$('#file').onchange = e => {
+  const f = e.target.files[0];
+  if (f) upload(f);
+};
+['dragenter', 'dragover'].forEach(ev => $('#drop').addEventListener(ev, e => {
+  e.preventDefault(); $('#drop').classList.add('over');
+}));
+['dragleave', 'drop'].forEach(ev => $('#drop').addEventListener(ev, e => {
+  e.preventDefault(); $('#drop').classList.remove('over');
+}));
+$('#drop').addEventListener('drop', e => {
+  const f = e.dataTransfer.files[0];
+  if (f) upload(f);
+});
+
+function upload(file) {
+  if (file.size > 20 * 1024 * 1024) { alert('文件超过 20MB，先压缩一下。'); return; }
+  if (!/\.(docx|pdf|txt|md)$/i.test(file.name)) { alert('只支持 .docx / .pdf / .txt / .md'); return; }
+  handleResponse(postFile('/api/upload', file));
+}
+
+$('#sampleBtn').onclick = () => handleResponse(fetch('/api/sample', {method: 'POST'}).then(r => r.json()));
+
+$('#pasteBtn').onclick = () => { $('#pastebox').value = ''; $('#mask').classList.add('on'); $('#pastebox').focus(); };
+$('#cancelPaste').onclick = () => $('#mask').classList.remove('on');
+$('#mask').onclick = e => { if (e.target.id === 'mask') $('#mask').classList.remove('on'); };
+$('#doPaste').onclick = async () => {
+  const text = $('#pastebox').value.trim();
+  if (text.length < 20) { alert('至少贴 20 个字。'); return; }
+  $('#mask').classList.remove('on');
+  handleResponse(fetch('/api/parse-text', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({text})
+  }).then(r => r.json()));
+};
+
+$('#toEditor').onclick = () => { location.href = '/editor'; };
+$('#againBtn').onclick = () => { location.reload(); };
+$('#continueDraft').onclick = e => { e.preventDefault(); location.href = '/editor'; };
+
+fetch('/api/state').then(r => r.json()).then(d => {
+  if (d.ready) $('#continueDraft').style.display = '';
+}).catch(() => {});
+
+// /?demo=1 直接跑一遍示例，方便截图和给人看效果
+if (new URLSearchParams(location.search).has('demo')) {
+  setTimeout(() => $('#sampleBtn').click(), 300);
+}
+</script>
+</body>
+</html>

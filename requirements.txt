@@ -1,0 +1,4 @@
+python-docx>=1.1.0
+
+# 读取 PDF 时还需要 PyMuPDF（可选）：
+# python -m pip install pymupdf>=1.24
