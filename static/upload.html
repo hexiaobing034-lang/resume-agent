@@ -193,6 +193,7 @@
     </dl>
 
     <ul class="warns" id="warns"></ul>
+    <div class="timing" id="imgHint" style="display:none"></div>
     <div class="timing" id="timing"></div>
 
     <div class="row" style="margin-top:18px">
@@ -298,6 +299,17 @@ function showResult(data) {
 
   const t = r.timings || {};
   $('#timing').textContent = '读取 ' + (t.read || 0) + 'ms · 结构 ' + (t.structure || 0) + 'ms · 版式 ' + (t.theme || 0) + 'ms';
+
+  const need = [];
+  if (!(data.theme.header || {}).logo) need.push('校徽');
+  if (!(data.theme.header || {}).photo) need.push('一寸照');
+  const imgHint = $('#imgHint');
+  if (need.length) {
+    imgHint.textContent = '没检测到' + need.join(' / ') + '：进编辑页「页眉图片」上传即可，左上放校徽、右上放一寸照。';
+    imgHint.style.display = '';
+  } else {
+    imgHint.style.display = 'none';
+  }
 
   const blob = new Blob([JSON.stringify({content: data.content, theme: data.theme, report: r}, null, 2)],
                         {type: 'application/json'});

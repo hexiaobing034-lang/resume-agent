@@ -12,10 +12,12 @@ import threading
 import time
 import traceback
 import urllib.parse
+import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from .build_docx import build
 from .docx_reader import read_docx
+from .images import sniff
 from .pdf_reader import read_pdf
 from .recognize import recognize
 from .text_reader import read_text, read_text_file
@@ -193,6 +195,8 @@ class Handler(BaseHTTPRequestHandler):
                 self._handle_text()
             elif path == "/api/save":
                 self._handle_save()
+            elif path == "/api/asset":
+                self._handle_asset()
             else:
                 self._json(404, {"ok": False, "error": "没有这个接口"})
         except ValueError as exc:
@@ -283,6 +287,27 @@ class Handler(BaseHTTPRequestHandler):
             "docx": docx_name,
             "download": "/api/download?f=" + urllib.parse.quote(docx_name),
         })
+
+    def _handle_asset(self):
+        query = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+        slot = (query.get("slot") or [""])[0]
+        if slot not in ("logo", "photo"):
+            raise ValueError("slot 只能是 logo（校徽）或 photo（证件照）。")
+        data = self._body()
+        if len(data) > 8 * 1024 * 1024:
+            raise ValueError("图片不要超过 8MB，先压缩一下。")
+        ext, width, height = sniff(data)
+        if width <= 0 or height <= 0:
+            raise ValueError("读不出图片尺寸，换一张试试。")
+        if max(width, height) > 8000:
+            raise ValueError("图片尺寸太大（超过 8000px），先缩一下。")
+
+        os.makedirs(ASSETS, exist_ok=True)
+        name = "%s_%s%s" % (slot, uuid.uuid4().hex[:10], ext)
+        with open(os.path.join(ASSETS, name), "wb") as fh:
+            fh.write(data)
+        self._json(200, {"ok": True, "file": name, "width": width, "height": height,
+                         "url": "/assets/" + name})
 
 
 def serve(port: int = 8765, open_browser: bool = True):

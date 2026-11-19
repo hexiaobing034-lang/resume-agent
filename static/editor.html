@@ -71,6 +71,28 @@
   .sec-title { display:flex; gap:8px; align-items:center; }
   .sec-title input { font-size:14px; font-weight:700; letter-spacing:.06em; }
   .add { margin-top:10px; display:flex; gap:7px; flex-wrap:wrap; }
+  /* 页眉图片 */
+  .imgsec { margin-top:14px; border-top:1px dashed var(--line); padding-top:12px; }
+  .imgtitle { display:flex; align-items:baseline; gap:8px; font-size:12px; font-weight:700;
+              letter-spacing:.06em; color:#555; margin-bottom:9px; }
+  .imgtitle span { font-weight:400; letter-spacing:0; color:#999; font-size:11px; }
+  .imgrow { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .imgslot { border:1px solid var(--line); border-radius:9px; padding:10px; background:#fcfcfa; }
+  .imgh { display:flex; flex-direction:column; gap:2px; margin-bottom:7px; }
+  .imgh b { font-size:12px; }
+  .imghint { color:#999; font-size:10.5px; }
+  .imgtool { display:flex; gap:6px; margin-bottom:7px; }
+  .imgtool .btn { padding:2px 8px; font-size:11px; }
+  .imgthumb { height:84px; border:1px dashed #d5d5cf; border-radius:7px; background:#fff;
+              display:grid; place-items:center; cursor:pointer; overflow:hidden; }
+  .imgthumb:hover { border-color:var(--accent); }
+  .imgthumb img { max-width:100%; max-height:84px; display:block; }
+  .imgthumb .imgempty { color:#c2c2bc; font-size:20px; }
+  .imgcap { margin-top:4px; color:#999; font-size:10px; text-align:right; }
+  .imgpos { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-top:6px; }
+  .imgf { display:flex; flex-direction:column; gap:2px; font-size:10px; color:#888; }
+  .imgf input { padding:3px 5px; font-size:11px; }
+  @media (max-width:1100px) { .imgrow { grid-template-columns:1fr; } }
   #toast { position:fixed; left:50%; bottom:26px; transform:translateX(-50%); background:#1f1f1f;
            color:#fff; padding:10px 16px; border-radius:9px; font-size:13px; opacity:0;
            transition:opacity .18s; pointer-events:none; z-index:60; max-width:82vw; }
@@ -163,6 +185,10 @@
     <section class="card">
       <h2>版式微调 <button class="btn mini" id="themeToggle">收起</button></h2>
       <div class="grid" id="themeFields"></div>
+      <div class="imgsec">
+        <div class="imgtitle">页眉图片 <span>左上放校徽，右上放一寸照；坐标为页面坐标（pt）</span></div>
+        <div class="imgrow" id="imgSlots"></div>
+      </div>
     </section>
     <div id="sections"></div>
     <button class="btn" id="addSection" style="width:100%;padding:10px">＋ 添加板块</button>
@@ -313,10 +339,118 @@ function renderThemeFields() {
     field('左边距 pt', t.page.margin_left, v => t.page.margin_left = v || 41.5, {type:'number', step:1, min:0}),
     field('右边距 pt', t.page.margin_right, v => t.page.margin_right = v || 39.8, {type:'number', step:1, min:0})
   );
+  renderImageSlots();
+}
+
+const round1 = v => Math.round(v * 10) / 10;
+
+function defaultImageBox(slot, width, height) {
+  const t = state.theme;
+  const ratio = height / Math.max(1, width);
+  if (slot === 'logo') {
+    const w = Math.min(110, Math.max(40, Math.round(t.page.width * 0.18)));
+    return {x:23.4, y:Math.max(6, round1(t.page.margin_top - 30)),
+            w:round1(w), h:round1(w * ratio)};
+  }
+  const h = 99.2;                       // 一寸照 35mm ≈ 99.2pt
+  const w = round1(h / ratio);
+  return {x:round1(t.page.width - t.page.margin_right - w),
+          y:Math.max(6, round1(t.page.margin_top - 2)), w:w, h:h};
+}
+
+async function uploadImage(slot, file) {
+  if (!/^image\/(png|jpeg|gif)$/i.test(file.type)) { toast('只支持 PNG / JPG / GIF 图片'); return; }
+  if (file.size > 8 * 1024 * 1024) { toast('图片不要超过 8MB，先压缩一下'); return; }
+  try {
+    const res = await fetch('/api/asset?slot=' + slot, {
+      method:'POST', headers:{'X-Filename':encodeURIComponent(file.name)}, body:file
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || '上传失败');
+    const t = state.theme;
+    const ratio = data.height / Math.max(1, data.width);
+    if (t.header[slot]) {
+      // 替换时保留原来的宽度（校徽）或高度（证件照），按新图比例校正另一边
+      const box = t.header[slot];
+      box.file = data.file;
+      if (slot === 'logo') box.h = round1(box.w * ratio);
+      else {
+        box.w = round1(box.h / ratio);
+        box.x = round1(t.page.width - t.page.margin_right - box.w);
+      }
+    } else {
+      t.header[slot] = Object.assign({file:data.file},
+        defaultImageBox(slot, data.width, data.height));
+    }
+    render();
+    toast(slot === 'logo' ? '校徽已放到左上角，可拖数字微调' : '证件照已放到右上角，默认 25×35mm');
+  } catch (err) {
+    toast('上传失败：' + (err.message || err));
+  }
+}
+
+function renderImageSlots() {
+  const host = $('#imgSlots');
+  if (!host) return;
+  host.innerHTML = '';
+  const t = state.theme;
+  [['logo', '左上 · 校徽', 'PNG 透明底最好，宽约 100pt'],
+   ['photo', '右上 · 一寸照', '默认 25×35mm（约 71×99pt）']].forEach(([slot, title, hint]) => {
+    const box = t.header[slot];
+    const card = el('div', {className:'imgslot'});
+    card.append(el('div', {className:'imgh'},
+      el('b', {textContent:title}),
+      el('span', {className:'imghint', textContent:hint})));
+
+    const picker = el('input', {type:'file', accept:'image/png,image/jpeg,image/gif'});
+    picker.style.display = 'none';
+    picker.onchange = () => {
+      const file = picker.files[0];
+      if (file) uploadImage(slot, file);
+      picker.value = '';
+    };
+
+    const tools = el('div', {className:'imgtool'});
+    const upload = el('button', {className:'btn', textContent: box ? '替换' : '上传'});
+    upload.onclick = () => picker.click();
+    tools.append(upload);
+    if (box) {
+      const remove = el('button', {className:'btn', textContent:'移除'});
+      remove.onclick = () => { t.header[slot] = null; render(); };
+      tools.append(remove);
+    }
+
+    const thumb = el('div', {className:'imgthumb'});
+    if (box) thumb.append(el('img', {src:'/assets/' + box.file}));
+    else thumb.append(el('span', {className:'imgempty', textContent:'＋'}));
+    thumb.onclick = () => picker.click();
+
+    const caption = el('div', {className:'imgcap',
+      textContent: box ? (box.w + ' × ' + box.h + ' pt') : '未上传'});
+
+    const position = el('div', {className:'imgpos'});
+    [['x', 'X'], ['y', 'Y'], ['w', '宽'], ['h', '高']].forEach(([key, label]) => {
+      const input = el('input', {type:'number', step:1, min:0,
+                                 value: box ? box[key] : ''});
+      input.disabled = !box;
+      input.oninput = () => {
+        if (!box) return;
+        box[key] = Number(input.value) || 0;
+        caption.textContent = box.w + ' × ' + box.h + ' pt';
+        schedulePreview();
+      };
+      position.append(el('label', {className:'imgf'}, label, input));
+    });
+
+    card.append(tools, thumb, caption, position, picker);
+    host.append(card);
+  });
 }
 $('#themeToggle').onclick = () => {
   themeOpen = !themeOpen;
   $('#themeFields').style.display = themeOpen ? '' : 'none';
+  const imgsec = document.querySelector('.imgsec');
+  if (imgsec) imgsec.style.display = themeOpen ? '' : 'none';
   $('#themeToggle').textContent = themeOpen ? '收起' : '展开';
 };
 
@@ -611,6 +745,7 @@ function renderPreview() {
     if (!parts.length) return;
     const line = el('div', {className:'pc'});
     line.style.marginTop = (first ? (t.spacing.c1_sb || 0) : (t.spacing.c2_sb || 0)) + 'pt';
+    if (photo) line.style.paddingRight = (photo.w + 8) + 'pt';
     first = false;
     parts.forEach(part => {
       if (part.bar) line.append(el('span', {className:'bar', textContent:'  |  '}));

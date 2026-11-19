@@ -16,7 +16,13 @@ from resume_agent.build_docx import build  # noqa: E402
 from resume_agent.theme import normalize  # noqa: E402
 
 EXAMPLES = os.path.join(ROOT, "examples")
-ASSETS = os.path.join(ROOT, "assets")
+ASSETS = os.path.join(EXAMPLES, "assets")
+
+# 示例里的校徽 / 一寸照是中性占位图，不指代任何真实学校或本人
+HEADER_IMAGES = {
+    "logo": {"file": "logo_placeholder.png", "x": 23.4, "y": 10.0, "w": 100.0, "h": 33.3},
+    "photo": {"file": "photo_placeholder.png", "x": 476.4, "y": 38.0, "w": 70.9, "h": 99.2},
+}
 
 TEMPLATE_CONTENT = {
     "_editor": {
@@ -66,6 +72,7 @@ def main() -> int:
         content = json.load(fh)
     with open(os.path.join(EXAMPLES, "sample_theme.json"), encoding="utf-8") as fh:
         theme = normalize(json.load(fh))
+    theme["header"].update(HEADER_IMAGES)
 
     sample_docx = os.path.join(EXAMPLES, "sample_resume.docx")
     build(content, theme, sample_docx, ASSETS)

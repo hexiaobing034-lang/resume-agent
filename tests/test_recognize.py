@@ -3,6 +3,7 @@
 
     python -m unittest discover -s tests -v
 """
+import base64
 import json
 import os
 import shutil
@@ -197,6 +198,41 @@ class ThemeTest(unittest.TestCase):
         theme = theme_mod.normalize({"sizes": {"body": "10"}, "meta_tab": "88"})
         self.assertEqual(theme["sizes"]["body"], 10.0)
         self.assertEqual(theme["meta_tab"], 88.0)
+
+
+class HeaderImageTest(unittest.TestCase):
+    # 1×1 透明 PNG，够 python-docx 认成一张图
+    PNG_1PX = base64.b64decode(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==")
+
+    def test_logo_and_photo_roundtrip(self):
+        tmp = tempfile.mkdtemp(prefix="resume-agent-images-")
+        try:
+            assets = os.path.join(tmp, "assets")
+            os.makedirs(assets)
+            for name in ("logo.png", "photo.png"):
+                with open(os.path.join(assets, name), "wb") as fh:
+                    fh.write(self.PNG_1PX)
+            theme = theme_mod.normalize(load_json("sample_theme.json"))
+            theme["header"]["logo"] = {"file": "logo.png", "x": 23.4, "y": 10.0,
+                                       "w": 60.0, "h": 20.0}
+            theme["header"]["photo"] = {"file": "photo.png", "x": 480.0, "y": 38.0,
+                                        "w": 50.0, "h": 70.0}
+            docx_path = os.path.join(tmp, "with-images.docx")
+            build(load_json("sample_content.json"), theme, docx_path, assets)
+            result = recognize(read_docx(docx_path, os.path.join(tmp, "extracted")),
+                               "with-images.docx")
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+        logo = result.theme["header"]["logo"]
+        photo = result.theme["header"]["photo"]
+        self.assertIsNotNone(logo)
+        self.assertIsNotNone(photo)
+        self.assertAlmostEqual(logo["x"], 23.4, places=1)
+        self.assertAlmostEqual(logo["w"], 60.0, places=1)
+        self.assertAlmostEqual(photo["x"], 480.0, places=1)
+        self.assertAlmostEqual(photo["h"], 70.0, places=1)
 
 
 class PdfTest(unittest.TestCase):
